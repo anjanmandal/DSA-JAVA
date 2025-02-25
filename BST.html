@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Binary Search Tree Visualizer</title>
+  <style>
+    /* Base Styles */
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f0f2f5;
+      margin: 0;
+      padding: 20px;
+    }
+    .container {
+      max-width: 1000px;
+      margin: auto;
+      text-align: center;
+    }
+    h1 {
+      color: #333;
+    }
+    .controls {
+      margin-bottom: 20px;
+    }
+    input[type="number"] {
+      padding: 10px;
+      font-size: 16px;
+      width: 200px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    button {
+      padding: 10px 15px;
+      margin: 0 5px;
+      font-size: 16px;
+      border: none;
+      border-radius: 4px;
+      background: #3498db;
+      color: #fff;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    button:hover {
+      background: #2980b9;
+    }
+    /* Tree Container */
+    #tree-container {
+      position: relative;
+      width: 100%;
+      height: 600px;
+      border: 1px solid #ddd;
+      background: #fff;
+      overflow: auto;
+      margin-top: 20px;
+    }
+    /* SVG for connecting lines */
+    #tree-lines {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+    /* Style for each tree node */
+    .node {
+      position: absolute;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: #3498db;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+      font-weight: bold;
+      transition: transform 0.3s;
+    }
+    .node:hover {
+      transform: scale(1.1);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Binary Search Tree Visualizer</h1>
+    <div class="controls">
+      <input type="number" id="value-input" placeholder="Enter a number">
+      <button id="add-btn">Add Node</button>
+      <button id="reset-btn">Reset Tree</button>
+    </div>
+    <div id="tree-container">
+      <svg id="tree-lines"></svg>
+    </div>
+  </div>
+
+  <script>
+    // Node and BinarySearchTree classes in JavaScript
+    class Node {
+      constructor(val) {
+        this.val = val;
+        this.left = null;
+        this.right = null;
+        this.height = 0;
+        // x and y will be assigned during layout
+        this.x = 0;
+        this.y = 0;
+      }
+    }
+
+    class BinarySearchTree {
+      constructor() {
+        this.root = null;
+      }
+
+      height(node) {
+        return node ? node.height : -1;
+      }
+
+      insert(val, node = this.root) {
+        if (node === null) {
+          const newNode = new Node(val);
+          if (this.root === null) {
+            this.root = newNode;
+          }
+          return newNode;
+        }
+        if (val < node.val) {
+          node.left = this.insert(val, node.left);
+        } else if (val > node.val) {
+          node.right = this.insert(val, node.right);
+        }
+        node.height = Math.max(this.height(node.left), this.height(node.right)) + 1;
+        return node;
+      }
+
+      reset() {
+        this.root = null;
+      }
+
+      // Layout the tree using an in-order traversal to assign x coordinates.
+      layout() {
+        let xCounter = 0;
+        const horizontalSpacing = 60; // spacing between nodes horizontally
+        const verticalSpacing = 80;   // spacing between levels
+
+        function inOrder(node, depth) {
+          if (!node) return;
+          inOrder(node.left, depth + 1);
+          // Center the node by adding an offset (20 = half the node width)
+          node.x = xCounter * horizontalSpacing + 20;
+          node.y = depth * verticalSpacing + 20;
+          xCounter++;
+          inOrder(node.right, depth + 1);
+        }
+        inOrder(this.root, 0);
+      }
+
+      // Retrieve all nodes (pre-order traversal) for drawing connections
+      getNodes() {
+        const nodes = [];
+        function traverse(node) {
+          if (!node) return;
+          nodes.push(node);
+          traverse(node.left);
+          traverse(node.right);
+        }
+        traverse(this.root);
+        return nodes;
+      }
+    }
+
+    // Instantiate a BST
+    const bst = new BinarySearchTree();
+
+    // DOM Elements
+    const valueInput = document.getElementById('value-input');
+    const addBtn = document.getElementById('add-btn');
+    const resetBtn = document.getElementById('reset-btn');
+    const treeContainer = document.getElementById('tree-container');
+    const svgLines = document.getElementById('tree-lines');
+
+    // Draw the BST on the page
+    function drawTree() {
+      // Clear previous nodes and lines
+      treeContainer.querySelectorAll('.node').forEach(node => node.remove());
+      while (svgLines.firstChild) {
+        svgLines.removeChild(svgLines.firstChild);
+      }
+
+      // Update layout of the BST
+      bst.layout();
+      const nodes = bst.getNodes();
+
+      // Create DOM elements for nodes
+      nodes.forEach(node => {
+        const nodeEl = document.createElement('div');
+        nodeEl.className = 'node';
+        nodeEl.style.left = `${node.x}px`;
+        nodeEl.style.top = `${node.y}px`;
+        nodeEl.textContent = node.val;
+        treeContainer.appendChild(nodeEl);
+
+        // Draw lines from parent to children
+        // We use the center of each node (radius = 20px)
+        if (node.left) {
+          drawLine(node.x + 20, node.y + 20, node.left.x + 20, node.left.y + 20);
+        }
+        if (node.right) {
+          drawLine(node.x + 20, node.y + 20, node.right.x + 20, node.right.y + 20);
+        }
+      });
+    }
+
+    // Function to draw a line between two points using SVG
+    function drawLine(x1, y1, x2, y2) {
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      line.setAttribute('x1', x1);
+      line.setAttribute('y1', y1);
+      line.setAttribute('x2', x2);
+      line.setAttribute('y2', y2);
+      line.setAttribute('stroke', '#888');
+      line.setAttribute('stroke-width', '2');
+      svgLines.appendChild(line);
+    }
+
+    // Event listeners for controls
+    addBtn.addEventListener('click', () => {
+      const value = parseInt(valueInput.value);
+      if (!isNaN(value)) {
+        bst.insert(value);
+        drawTree();
+        valueInput.value = '';
+        valueInput.focus();
+      }
+    });
+
+    // Allow Enter key to add a node
+    valueInput.addEventListener('keyup', (e) => {
+      if (e.key === 'Enter') {
+        addBtn.click();
+      }
+    });
+
+    resetBtn.addEventListener('click', () => {
+      bst.reset();
+      drawTree();
+      valueInput.value = '';
+      valueInput.focus();
+    });
+
+    // Optional: Pre-populate the BST with some values
+    [10, 5, 15, 3, 7, 13, 17].forEach(val => bst.insert(val));
+    drawTree();
+  </script>
+</body>
+</html>
